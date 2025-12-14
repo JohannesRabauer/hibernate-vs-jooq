@@ -46,7 +46,6 @@ erDiagram
 
 ```mermaid
 flowchart LR
-    subgraph docker-compose [docker-compose services]
         direction LR
         frontend[Frontend]
         backend_hibernate[backend-hibernate]
@@ -61,9 +60,6 @@ flowchart LR
     %% Backends contact the database
     backend_hibernate -->|JDBC| postgres
     backend_jooq -->|JDBC| postgres
-
-    %% Optional: show developer/local machine launching compose
-    developer[(Developer / Host)] -->|docker compose up| docker-compose
 ```
 
 This diagram shows that the `frontend` service calls either `backend-hibernate` or `backend-jooq`, and both backends connect to the `PostgreSQL` database.
