@@ -68,7 +68,7 @@ This diagram shows that the `frontend` service calls either `backend-hibernate` 
 
 1. I want a easily buildable system with `mvn clean package`
 2. To keep the metamodel up-to-date i would like to create the model every time i build.
-Explained at (jooq.org)[https://www.jooq.org/doc/latest/manual/code-generation/codegen-version-control/#derived-artefacts].
+Explained at [jooq.org](https://www.jooq.org/doc/latest/manual/code-generation/codegen-version-control/#derived-artefacts).
 3. Building the metamodel depends on a running database with all the flyway scripts applied.
 
 This seems like a big problem, if i don't want to keep my metamodel (in the `target` folder), because
