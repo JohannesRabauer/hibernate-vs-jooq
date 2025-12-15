@@ -46,12 +46,11 @@ erDiagram
 
 ```mermaid
 flowchart LR
-        direction LR
-        frontend[Frontend]
-        backend_hibernate[backend-hibernate]
-        backend_jooq[backend-jooq]
-        postgres[(PostgreSQL)]
-    end
+    direction LR
+    frontend[Frontend]
+    backend_hibernate[backend-hibernate]
+    backend_jooq[backend-jooq]
+    postgres[(PostgreSQL)]
 
     %% Frontend can call either backend
     frontend -->|calls / HTTP| backend_hibernate
