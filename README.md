@@ -77,10 +77,13 @@ i can't startup my application without the metamodel-classes (build error).
 ```mermaid
 flowchart TD
     %% Core artifacts
-    SRC[Application Source Code\nUses jOOQ DSL]
-    META[jOOQ Metamodel\nGenerated Classes]
+    SRC[Application Source Code
+    Uses jOOQ DSL]
+    META[jOOQ Metamodel
+    Generated Classes]
     GEN[jOOQ Generator]
-    DB[(Database\nSchema State)]
+    DB[(Database
+    Schema State)]
     FLY[Flyway Migration Scripts]
 
     %% Compile and generation dependencies
@@ -95,15 +98,21 @@ flowchart TD
     SRC -->|Must compile to run| FLY
 
     %% Fresh clone situation
-    CLONE[Fresh Repository Clone\nTarget directory empty\nNo jOOQ Metamodel]
+    CLONE[Fresh Repository Clone
+    Target directory empty
+    No jOOQ Metamodel]
     CLONE --> SRC
     CLONE --> FLY
 
     %% Explanatory notes
-    N1["Application cannot compile\nbecause jOOQ metamodel is missing"]
-    N2["jOOQ metamodel cannot be generated\nbecause database schema does not exist yet"]
-    N3["Database schema does not exist\nbecause Flyway migrations are not applied"]
-    N4["Flyway migrations cannot run\nbecause application does not compile"]
+    N1["Application cannot compile
+    because jOOQ metamodel is missing"]
+    N2["jOOQ metamodel cannot be generated
+    because database schema does not exist yet"]
+    N3["Database schema does not exist
+    because Flyway migrations are not applied"]
+    N4["Flyway migrations cannot run
+    because application does not compile"]
 
     SRC -.-> N1
     GEN -.-> N2
@@ -111,7 +120,8 @@ flowchart TD
     FLY -.-> N4
 
     %% Deadlock highlight
-    DEADLOCK["BOOTSTRAP DEADLOCK\nNo entry point to start the build"]
+    DEADLOCK["BOOTSTRAP DEADLOCK
+    No entry point to start the build"]
     N1 --> DEADLOCK
     N2 --> DEADLOCK
     N3 --> DEADLOCK
