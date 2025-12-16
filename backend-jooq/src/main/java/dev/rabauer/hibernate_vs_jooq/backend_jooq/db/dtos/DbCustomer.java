@@ -1,4 +1,4 @@
-package dev.rabauer.hibernate_vs_jooq.backend_jooq.db;
+package dev.rabauer.hibernate_vs_jooq.backend_jooq.db.dtos;
 
 public record DbCustomer(
         Integer customerId, String firstName, String lastName, String email
