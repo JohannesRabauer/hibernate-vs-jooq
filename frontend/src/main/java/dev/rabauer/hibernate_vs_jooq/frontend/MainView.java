@@ -31,16 +31,17 @@ public class MainView extends VerticalLayout {
         setSizeFull();
         add(new H3("Customers"));
         customerGrid.addColumn(c -> c.firstName() + " " + c.lastName()).setHeader("Name");
-        customerGrid.addColumn(c -> c.email()).setHeader("Email");
+        customerGrid.addColumn(ApiCustomer::email).setHeader("Email");
         customerGrid.setSelectionMode(Grid.SelectionMode.SINGLE);
 
         Button addCustomer = new Button("Add Customer", e -> openAddCustomer());
-        Button view = new Button("View Details", e -> {
-            var sel = customerGrid.asSingleSelect().getValue();
-            if (sel != null) openCustomerDetails(sel);
+
+        // Open details when clicking a customer row
+        customerGrid.addItemClickListener(event -> {
+            openCustomerDetails(event.getItem());
         });
 
-        HorizontalLayout actions = new HorizontalLayout(addCustomer, view);
+        HorizontalLayout actions = new HorizontalLayout(addCustomer);
         add(actions, customerGrid);
         setFlexGrow(1, customerGrid);
     }
@@ -82,38 +83,36 @@ public class MainView extends VerticalLayout {
 
         // Addresses
         Grid<ApiAddress> addrGrid = new Grid<>(ApiAddress.class, false);
-        addrGrid.addColumn(a -> a.street()).setHeader("Street");
-        addrGrid.addColumn(a -> a.city()).setHeader("City");
-        addrGrid.addColumn(a -> a.country()).setHeader("Country");
+        addrGrid.addColumn(ApiAddress::street).setHeader("Street");
+        addrGrid.addColumn(ApiAddress::city).setHeader("City");
+        addrGrid.addColumn(ApiAddress::country).setHeader("Country");
         addrGrid.setItems(client.getAddresses(customer.id()));
 
         // Invoices
         Grid<ApiInvoice> invoiceGrid = new Grid<>(ApiInvoice.class, false);
-        invoiceGrid.addColumn(i -> i.id()).setHeader("ID");
-        invoiceGrid.addColumn(i -> i.timestamp()).setHeader("Date");
-        invoiceGrid.addColumn(i -> i.totalAmount()).setHeader("Total");
+        invoiceGrid.addColumn(ApiInvoice::id).setHeader("ID");
+        invoiceGrid.addColumn(ApiInvoice::timestamp).setHeader("Date");
+        invoiceGrid.addColumn(ApiInvoice::totalAmount).setHeader("Total");
         invoiceGrid.setItems(client.getInvoices(customer.id()));
-
+        // open invoice detail when clicking a row
+        invoiceGrid.addItemClickListener(event -> openInvoiceDetail(event.getItem().id()));
         Button createInvoice = new Button("Create Invoice", e -> openCreateInvoice(customer));
-        Button viewInvoice = new Button("View Invoice", e -> {
-            var sel = invoiceGrid.asSingleSelect().getValue();
-            if (sel != null) openInvoiceDetail(sel.id());
-        });
 
-        d.add(new H3("Addresses"), addrGrid, new H3("Invoices"), invoiceGrid, new HorizontalLayout(createInvoice, viewInvoice));
+        d.add(new H3("Addresses"), addrGrid, new H3("Invoices"), invoiceGrid, new HorizontalLayout(createInvoice));
         d.open();
     }
 
     private void openInvoiceDetail(int invoiceId) {
         ApiInvoiceDetail detail = client.getInvoiceDetail(invoiceId);
         Dialog d = new Dialog();
+        d.setWidth("500px");
         d.add(new H3("Invoice " + invoiceId));
         Grid<ApiInvoiceDetail.ApiInvoiceItem> items = new Grid<>(ApiInvoiceDetail.ApiInvoiceItem.class, false);
         items.addColumn(it -> it.product().name()).setHeader("Product");
         items.addColumn(ApiInvoiceDetail.ApiInvoiceItem::quantity).setHeader("Qty");
         items.addColumn(it -> it.product().price()).setHeader("Unit Price");
         items.setItems(detail.items());
-        d.add(items, new Button("Close", e -> d.close()));
+        d.add(items);
         d.open();
     }
 
