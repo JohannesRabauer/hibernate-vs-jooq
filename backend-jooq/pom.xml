@@ -133,40 +133,6 @@
                     </systemPropertyVariables>
                 </configuration>
             </plugin>
-
-
-            <plugin>
-                <groupId>org.jooq</groupId>
-                <artifactId>jooq-codegen-maven</artifactId>
-                <version>${jooq-codegen-maven.version}</version>
-                <executions>
-                    <execution>
-                        <id>generate-jooq</id>
-                        <phase>generate-sources</phase>
-                        <goals>
-                            <goal>generate</goal>
-                        </goals>
-                        <configuration>
-                            <jdbc>
-                                <driver>org.postgresql.Driver</driver>
-                                <url>jdbc:postgresql://localhost:15432/hibernate-vs-jooq</url>
-                                <user>dbuser</user>
-                                <password>not-secure</password>
-                            </jdbc>
-                            <generator>
-                                <database>
-                                    <inputSchema>public</inputSchema>
-                                    <!-- optionally exclude Flyway schema history table -->
-                                    <excludes>flyway_schema_history</excludes>
-                                </database>
-                                <target>
-                                    <packageName>dev.rabauer.hibernate_vs_jooq.backend_jooq.generated</packageName>
-                                </target>
-                            </generator>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
         </plugins>
     </build>
 
@@ -183,6 +149,49 @@
                 <skipITs>false</skipITs>
                 <quarkus.native.enabled>true</quarkus.native.enabled>
             </properties>
+        </profile>
+
+        <profile>
+            <id>jooq-generate</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.jooq</groupId>
+                        <artifactId>jooq-codegen-maven</artifactId>
+                        <version>${jooq-codegen-maven.version}</version>
+                        <executions>
+                            <execution>
+                                <id>generate-jooq</id>
+                                <phase>generate-sources</phase>
+                                <goals>
+                                    <goal>generate</goal>
+                                </goals>
+                                <configuration>
+                                    <jdbc>
+                                        <driver>org.postgresql.Driver</driver>
+                                        <url>jdbc:postgresql://localhost:15432/hibernate-vs-jooq</url>
+                                        <user>dbuser</user>
+                                        <password>not-secure</password>
+                                    </jdbc>
+                                    <generator>
+                                        <database>
+                                            <inputSchema>public</inputSchema>
+                                            <!-- optionally exclude Flyway schema history table -->
+                                            <excludes>flyway_schema_history</excludes>
+                                        </database>
+                                        <target>
+                                            <directory>/src/main/java</directory>
+                                            <packageName>dev.rabauer.hibernate_vs_jooq.backend_jooq.generated
+                                            </packageName>
+                                        </target>
+                                    </generator>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+
         </profile>
     </profiles>
 </project>
