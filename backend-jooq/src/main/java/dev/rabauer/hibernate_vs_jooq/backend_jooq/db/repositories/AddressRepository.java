@@ -21,10 +21,6 @@ public class AddressRepository {
         return dsl.select(ADDRESS.STREET, ADDRESS.CITY, ADDRESS.COUNTRY)
                 .from(ADDRESS)
                 .where(ADDRESS.CUSTOMER_ID.eq(customerId))
-                .fetch(r -> new DbAddress(
-                        r.get(ADDRESS.STREET),
-                        r.get(ADDRESS.CITY),
-                        r.get(ADDRESS.COUNTRY)
-                ));
+                .fetchInto(DbAddress.class);
     }
 }

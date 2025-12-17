@@ -27,11 +27,7 @@ public class InvoiceRepository {
         return dsl.select(INVOICE.INVOICE_ID, INVOICE.INVOICE_DATE, INVOICE.TOTAL_AMOUNT)
                 .from(INVOICE)
                 .where(INVOICE.CUSTOMER_ID.eq(customerId))
-                .fetch(r -> new DbInvoice(
-                        r.get(INVOICE.INVOICE_ID),
-                        r.get(INVOICE.INVOICE_DATE),
-                        r.get(INVOICE.TOTAL_AMOUNT)
-                ));
+                .fetchInto(DbInvoice.class);
     }
 
     public List<DbInvoiceItem> findItemsByInvoiceId(int invoiceId) {
@@ -39,12 +35,7 @@ public class InvoiceRepository {
                 .from(INVOICE_ITEM)
                 .join(PRODUCT).on(INVOICE_ITEM.PRODUCT_ID.eq(PRODUCT.PRODUCT_ID))
                 .where(INVOICE_ITEM.INVOICE_ID.eq(invoiceId))
-                .fetch(r -> new DbInvoiceItem(
-                        r.get(INVOICE_ITEM.QUANTITY),
-                        r.get(INVOICE_ITEM.UNIT_PRICE),
-                        r.get(PRODUCT.PRODUCT_NAME),
-                        r.get(PRODUCT.PRICE)
-                ));
+                .fetchInto(DbInvoiceItem.class);
     }
 
     public Integer createInvoice(ApiNewInvoice newInvoice) {
