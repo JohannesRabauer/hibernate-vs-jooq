@@ -32,35 +32,30 @@ public class MainResource {
 
     @GET
     @Path("/customer")
-    @Produces(MediaType.APPLICATION_JSON)
     public List<ApiCustomer> getAllCustomers() {
         return customerRepository.findAll().stream().map(CustomerMapper::dbToApi).toList();
     }
 
     @GET
     @Path("/customer/{customerId}/addresses")
-    @Produces(MediaType.APPLICATION_JSON)
     public List<ApiAddress> getAllAddressesOfCustomer(@PathParam("customerId") int customerId) {
         return addressRepository.findAllByCustomerId(customerId).stream().map(AddressMapper::dbToApi).toList();
     }
 
     @GET
     @Path("/customer/{customerId}/invoices")
-    @Produces(MediaType.APPLICATION_JSON)
     public List<ApiInvoice> getAllInvoicesOfCustomer(@PathParam("customerId") int customerId) {
         return invoiceRepository.findAllByCustomerId(customerId).stream().map(InvoiceMapper::dbToApi).toList();
     }
 
     @GET
     @Path("/invoice/{invoiceId}")
-    @Produces(MediaType.APPLICATION_JSON)
     public ApiInvoiceDetail getInvoiceDetail(@PathParam("invoiceId") int invoiceId) {
         return InvoiceMapper.itemsToApiDetail(invoiceRepository.findItemsByInvoiceId(invoiceId));
     }
 
     @POST
     @Path("/customer")
-    @Consumes(MediaType.APPLICATION_JSON)
     public Response createCustomer(@Valid ApiNewCustomer newCustomer) {
         DbCustomer db = customerRepository.create(newCustomer.firstName(), newCustomer.lastName(), newCustomer.email());
         ApiCustomer api = CustomerMapper.dbToApi(db);
@@ -69,7 +64,6 @@ public class MainResource {
 
     @POST
     @Path("/invoice")
-    @Consumes(MediaType.APPLICATION_JSON)
     public Response createInvoice(@Valid ApiNewInvoice newInvoice) {
         int id = invoiceRepository.createInvoice(newInvoice);
         return Response.created(java.net.URI.create("/invoice/" + id)).build();
