@@ -5,6 +5,9 @@
     "@slidev/theme-default": "^0.25.0",
     "@slidev/theme-seriph": "^0.25.0"
   },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "slidev",
     "build": "slidev build"
