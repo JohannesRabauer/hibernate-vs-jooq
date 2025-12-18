@@ -2,43 +2,90 @@
 title: "jOOQ vs Hibernate — Be explicit, stay sane"
 author: ""
 date: 2025-12-18
-theme: seriph
+theme: default
 class: lead
+background: https://source.unsplash.com/1600x900/?mountain,forest
 ---
 
 # jOOQ vs Hibernate ⚔️
 
 > When "no SQL knowledge required" becomes a lie — pick predictability.
 
+<!--
+Notes:
+💡 Predictability wins.
+Short: Know your SQL.
+-->
+
+---
+
+---
+incremental: true
+background: https://source.unsplash.com/1600x900/?lake
+class: text-left
 ---
 
 ## TL;DR
 
-- **Hibernate** promises to hide SQL and let you think in objects. ✅
-- **jOOQ** exposes SQL as the primary API — you write real SQL, type-safe and composable. ✅
+- **Hibernate** — Magic ❌
+- **jOOQ** — SQL ✅
 
-**Core point:** with Hibernate you eventually must understand SQL *and* what Hibernate does; with jOOQ you must understand SQL up front and there is far less magic.
+**Core point:** Hibernate hides work; jOOQ makes SQL explicit.
 
+<!--
+Notes:
+Short: jOOQ = SQL.
+Tip: less magic.
+-->
+
+---
+
+---
+incremental: true
+background: https://source.unsplash.com/1600x900/?path,river
+class: text-left
 ---
 
 ## Outline
 
-1. Why abstractions leak
-2. Side-by-side examples
-3. Debugging & performance
-4. Testing & tooling
-5. When to prefer jOOQ vs Hibernate
+- Why abstractions leak 🔍
+- Side-by-side comparisons ⚖️
+- Debugging & performance ⚠️
+- Testing & tooling 🧪
+- When to prefer jOOQ vs Hibernate ✅
 
+<!--
+Notes:
+Quick: topics
+One line each.
+-->
+
+---
+
+---
+incremental: true
+background: https://source.unsplash.com/1600x900/?fog,forest
+class: text-left
 ---
 
 ## 1) Why the abstraction leaks
 
-- Hibernate abstracts SQL: object identity, lazy loading, flush, cascades, proxies, first-level cache, dirty checking 🔁
-- These features are handy — but they add hidden lifecycle & side-effects.
-- When queries or performance matter, you end up reading generated SQL and learning the same SQL you tried to avoid.
+- Hibernate hides SQL → lifecycle magic ⚠️
+- Lazy, flush, cascades, dirty checking 🧩
+- You end up learning SQL anyway 📚
 
-> The promise "you don't need to know SQL" turns false fast for non-trivial apps.
+<!--
+Notes:
+Short: magic leaks.
+Tip: expect SQL.
+-->
 
+---
+
+---
+incremental: true
+background: https://source.unsplash.com/1600x900/?river,bridge
+class: text-left
 ---
 
 ## 2) Side-by-side: simple read
@@ -79,6 +126,18 @@ var r = ctx.select()
 </div>
 </div>
 
+<!--
+Notes:
+Short: read patterns.
+One: know joins.
+-->
+
+---
+
+---
+incremental: true
+background: https://source.unsplash.com/1600x900/?meadow,orchard
+class: text-left
 ---
 
 ## 2b) Side-by-side: create invoice with items
@@ -124,49 +183,93 @@ ctx.batchInsert(items.map(item ->
 </div>
 </div>
 
+<!--
+Notes:
+Short: create patterns.
+One: explicit inserts.
+-->
+
+---
+
+---
+incremental: true
+background: https://source.unsplash.com/1600x900/?cliff,wave
+class: text-left
 ---
 
 ## 3) Debugging & performance ⚠️
 
-- Hibernate issues you will encounter:
-  - N+1 selects (because of lazy collections)
-  - Unexpected updates due to dirty checking
-  - Session/transaction boundaries affecting results
-  - Second-level cache causing stale results
-- jOOQ gives you: precise SQL control — easier to reason about performance and index usage
+- N+1 selects (lazy collections) 🔁
+- Unexpected updates (dirty checking) ⚠️
+- Session boundaries affect results ⏳
+- jOOQ: precise SQL, easier tuning ✅
 
 > When performance debugging, reading a SQL statement beats chasing lifecycle bugs.
 
+<!--
+Notes:
+Short: debug fast.
+Tip: inspect SQL.
+-->
+
+---
+
+---
+incremental: true
+background: https://source.unsplash.com/1600x900/?fields,flowers
+class: text-left
 ---
 
 ## 4) Testing & migrations 🧪
 
-- With Hibernate you must test both mapping *and* ORM behavior (flush timing, cascades). Tests can be brittle to internal lifecycle assumptions.
-- With jOOQ, tests are often more straightforward — assert SQL result sets / snapshots and DB state. Also pairs well with migrations (Flyway/Liquibase) because you test at the SQL level.
+- Hibernate: mapping + lifecycle tests (brittle) ⚠️
+- jOOQ: assert DB state, SQL snapshots ✅
+- Pairs well with Flyway/Liquibase 🔁
 
+<!--
+Notes:
+Short: test DB state.
+Keep snapshots.
+-->
+
+---
+
+---
+incremental: true
+background: https://source.unsplash.com/1600x900/?forest,trail
+class: text-left
 ---
 
 ## 5) Tooling & maintainability
 
-- jOOQ:
-  - Auto-generated types from schema — IDE autocomplete for tables/columns
-  - SQL is first-class — easier to reason about schema changes
-  - No magic => easier code review for DB operations
-- Hibernate:
-  - Great for CRUD with simple domain logic
-  - Hides complexity until it leaks — then you need deep ORM knowledge
+- jOOQ: generated types → IDE autocomplete ✨
+- SQL first → easier schema reasoning 🧭
+- Hibernate: quick CRUD, but hidden complexity 🪄
 
+<!--
+Notes:
+Short: tooling matters.
+Prefer clarity.
+-->
+
+---
+
+---
+incremental: true
+background: https://source.unsplash.com/1600x900/?sunrise
+class: text-left
 ---
 
 ## When to choose which? ✅
 
-- Prefer **Hibernate** when:
-  - You have simple CRUD, complex object graphs, and want rapid domain modeling
-  - You benefit from automatic state management and cascading
+- Hibernate: simple CRUD, object graphs, quick modeling 🧩
+- jOOQ: predictable SQL, performance, explicit control ⚡
 
-- Prefer **jOOQ** when:
-  - You need predictable SQL, complex queries, or performance-sensitive code
-  - Your team is comfortable with SQL and wants explicit control
+<!--
+Notes:
+Short: choose by needs.
+One line.
+-->
 
 ---
 
@@ -199,16 +302,34 @@ SELECT o.id, i.* FROM orders o JOIN order_items i ON i.order_id = o.id
 
 ---
 
+---
+incremental: true
+background: https://source.unsplash.com/1600x900/?sunset
+class: text-left
+---
+
 ## Final thought 💡
 
-- ORM convenience can be a productivity win — until edge-cases make the abstraction cost more than its benefit.
-- jOOQ forces you to learn SQL up front, trading off some convenience for clarity, control, and predictable performance.
+- Convenience helps — until magic hurts.
+- jOOQ trades convenience for clarity & control.
+
+<!--
+Notes:
+Short: clarity > magic.
+Keep it simple.
+-->
 
 ---
 
 # Thanks — Questions? ✨
 
 > Slide source: `slidev/index.md` in the repo
+
+<!--
+Notes:
+Thanks! 🙏
+Ask away.
+-->
 
 ---
 transition: fade-out
