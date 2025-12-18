@@ -13,7 +13,7 @@ COPY src ./src
 
 # Package the application (skip tests for faster builds)
 RUN --mount=type=cache,target=/root/.m2 \
-    mvn clean package -DskipTests
+    mvn clean package -Pproduction -DskipTests
 
 # Stage 2: Run the application
 FROM eclipse-temurin:25-jre-alpine
