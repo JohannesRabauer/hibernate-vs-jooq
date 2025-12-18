@@ -18,7 +18,24 @@ img.slide-image { width: 100%; height: 15vh; max-height: 20vh; object-fit: cover
   img.slide-image { height: 22vh; max-height: 26vh; }
 }
 /* Force a light slide background */
-.slide { background-color: #ffffff !important; }</style>
+.slide { background-color: #ffffff !important; }
+
+/* Constrain code block width in side-by-side examples */
+.slide div[grid] pre, .slide div[grid] code {
+  max-width: 42ch;
+  overflow-x: auto;
+  white-space: pre;
+  display: block;
+}
+
+/* Specific tweaks for N+1 example and small images */
+.n1-left pre { max-width: 36ch; }
+img.slide-image.small { height: 10vh; max-height: 12vh; }
+@media (max-width: 768px) {
+  img.slide-image.small { height: 16vh; max-height: 18vh; }
+}
+
+</style>
 
 # jOOQ vs Hibernate ⚔️
 
@@ -260,12 +277,13 @@ Notes:
 ## Example: N+1
 
 <div grid="~ cols-2 gap-6">
-<div>
+<div class="n1-left">
 <strong>Hibernate</strong>
 
 ```java
 for (Order o : orders) {
-  System.out.println(o.getItems().size()); // triggers per-order query
+  System.out.println(o.getItems().size()); 
+  // triggers per-order query
 }
 ```
 
@@ -276,7 +294,8 @@ for (Order o : orders) {
 <strong>jOOQ</strong>
 
 ```sql
-SELECT o.id, i.* FROM orders o JOIN order_items i ON i.order_id = o.id
+SELECT o.id, i.* FROM orders o 
+JOIN order_items i ON i.order_id = o.id
 ```
 
 - Explicit join ✅
@@ -288,6 +307,207 @@ SELECT o.id, i.* FROM orders o JOIN order_items i ON i.order_id = o.id
 Notes:
 - Hibernate loop accesses lazy collections and can trigger one query per item (N+1).
 - An explicit join returns all rows once; that's what you build with jOOQ.
+-->
+
+---
+incremental: true
+background: https://picsum.photos/seed/sunset/1600/900
+class: text-left
+---
+
+## Update / Optimistic locking
+
+<img class="slide-image small" src="https://picsum.photos/seed/updatepatch/1600/900" />
+
+<div grid="~ cols-2 gap-6">
+<div>
+<strong>Hibernate</strong>
+
+```java
+@Entity
+public class Invoice {
+  @Id @GeneratedValue
+  private Long id;
+  @Version
+  private Long version;
+  private BigDecimal total;
+}
+// Usage
+Invoice inv = em.find(Invoice.class, id);
+inv.setTotal(newTotal);
+// commit -> flush -> 
+// UPDATE invoice SET total = ?, version = version + 1 
+// WHERE id = ? AND version = ?
+```
+
+</div>
+<div>
+<strong>jOOQ</strong>
+
+```java
+int updated = ctx.update(INVOICE)
+  .set(INVOICE.TOTAL, newTotal)
+  .where(
+    INVOICE.ID.eq(id).and(INVOICE.VERSION.eq(version))
+  )
+  .execute();
+
+if (updated == 0) {
+  // concurrency conflict -> reload & retry
+}
+```
+
+</div>
+</div>
+
+<!--
+Notes:
+- Hibernate handles versioning for you but implicit flushes can surprise you; you must understand when flush occurs.
+- With jOOQ you write defensive updates and check affected rows, which makes conflict handling explicit and testable.
+-->
+
+---
+incremental: true
+background: https://picsum.photos/seed/aggregation/1600/900
+class: text-left
+---
+
+## Aggregation & complex queries
+
+<img class="slide-image" src="https://picsum.photos/seed/aggregation/1600/900" />
+
+<div grid="~ cols-2 gap-6">
+<div>
+<strong>Hibernate</strong>
+
+```java
+List<Tuple> stats = em.createQuery(
+  "select i.customer.id, sum(i.total) from Invoice i group by i.customer.id", Tuple.class)
+  .getResultList();
+
+// For window functions you often need native SQL
+List<Object[]> rows = em.createNativeQuery(
+  "select *, row_number() over(partition by customer_id order by created_at desc) rn from orders")
+  .getResultList();
+```
+
+</div>
+<div>
+<strong>jOOQ</strong>
+
+```java
+var result = ctx.select(ORDERS.CUSTOMER_ID, DSL.sum(ORDERS.TOTAL).as("sum_total"))
+  .from(ORDERS)
+  .groupBy(ORDERS.CUSTOMER_ID)
+  .fetch();
+
+var window = ctx.select(ORDERS.fields())
+  .select(DSL.rowNumber().over().partitionBy(ORDERS.CUSTOMER_ID).orderBy(ORDERS.CREATED_AT.desc()).as("rn"))
+  .from(ORDERS)
+  .fetch();
+```
+
+</div>
+</div>
+
+<!--
+Notes:
+- Hibernate can express many aggregations, but complex SQL often forces native queries or result transformers.
+- jOOQ embraces SQL features (windows, CTEs), so complex analytics queries stay readable and maintainable.
+-->
+
+---
+incremental: true
+background: https://picsum.photos/seed/bulkops/1600/900
+class: text-left
+---
+
+## Bulk updates & deletes
+
+<img class="slide-image" src="https://picsum.photos/seed/bulkops/1600/900" />
+
+<div grid="~ cols-2 gap-6">
+<div>
+<strong>Hibernate</strong>
+
+```java
+int affected = em.createQuery("update Product p set p.available = false where p.soldOut = true")
+  .executeUpdate();
+em.clear(); // important to avoid stale entities
+```
+
+</div>
+<div>
+<strong>jOOQ</strong>
+
+```java
+int affected = ctx.update(PRODUCT)
+  .set(PRODUCT.AVAILABLE, false)
+  .where(PRODUCT.SOLD_OUT.eq(true))
+  .execute();
+// no persistence context to manage
+```
+
+</div>
+</div>
+
+<!--
+Notes:
+- JPQL bulk updates are efficient but you must manage the persistence context to avoid stale in-memory entities.
+- With jOOQ you operate directly on the DB and then reload any needed entities, which makes side-effects explicit.
+-->
+
+---
+incremental: true
+background: https://picsum.photos/seed/pagination/1600/900
+class: text-left
+---
+
+## Pagination & fetching strategies
+
+<img class="slide-image" src="https://picsum.photos/seed/pagination/1600/900" />
+
+<div grid="~ cols-2 gap-6">
+<div>
+<strong>Hibernate</strong>
+
+```java
+List<Order> page = em.createQuery("select o from Order o join fetch o.items where o.customer.id = :c", Order.class)
+  .setParameter("c", customerId)
+  .setFirstResult(20)
+  .setMaxResults(10)
+  .getResultList();
+
+// Note: join fetch + pagination can be tricky; often fetch ids first then fetch associations.
+```
+
+</div>
+<div>
+<strong>jOOQ</strong>
+
+```java
+var page = ctx.selectFrom(ORDERS)
+  .where(ORDERS.CUSTOMER_ID.eq(customerId))
+  .orderBy(ORDERS.CREATED_AT.desc())
+  .limit(10)
+  .offset(20)
+  .fetch();
+
+// Keyset pagination example
+var keyset = ctx.selectFrom(ORDERS)
+  .where(ORDERS.CUSTOMER_ID.eq(customerId).and(ORDERS.CREATED_AT.lt(lastSeenDate)))
+  .orderBy(ORDERS.CREATED_AT.desc())
+  .limit(10)
+  .fetch();
+```
+
+</div>
+</div>
+
+<!--
+Notes:
+- Hibernate pagination is convenient for entities, but joining associations or lazy-loading can reintroduce extra queries.
+- jOOQ encourages selecting exactly the columns you need and using efficient pagination strategies (keyset for large offsets).
 -->
 
 ---
