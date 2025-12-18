@@ -6,6 +6,7 @@
     "@slidev/theme-seriph": "^0.25.0"
   },
   "scripts": {
-    "dev": "slidev"
+    "dev": "slidev",
+    "build": "slidev build"
   }
 }
