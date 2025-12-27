@@ -1,5 +1,6 @@
 package dev.rabauer.hibernate_vs_jooq.frontend;
 
+import com.github.javafaker.Faker;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
@@ -17,6 +18,8 @@ import org.eclipse.microprofile.rest.client.inject.RestClient;
 import jakarta.annotation.PostConstruct;
 import jakarta.inject.Inject;
 import java.time.Instant;
+import java.time.Duration;
+import java.time.LocalDateTime;
 
 @Route("")
 public class MainView extends VerticalLayout {
@@ -36,12 +39,62 @@ public class MainView extends VerticalLayout {
 
         Button addCustomer = new Button("Add Customer", e -> openAddCustomer());
 
+        NumberField bulkCount = new NumberField("Create customers");
+        bulkCount.setValue(10_000.0);
+        bulkCount.setStep(1_000);
+        bulkCount.setMin(1);
+
+        Button generateCustomers = new Button("Generate");
+        generateCustomers.addClickListener( e -> {
+            int count = bulkCount.getValue() == null ? 0 : bulkCount.getValue().intValue();
+            if (count <= 0) return;
+
+            // disable controls while running
+            generateCustomers.setEnabled(false);
+            bulkCount.setEnabled(false);
+
+            var start = Instant.now();
+            System.out.println("Starting customer generation: count=" + count + " at " + start);
+
+            java.util.concurrent.CompletableFuture.runAsync(() -> {
+                var faker = new Faker();
+                for (int i = 1; i <= count; i++) {
+                    var payload = new ApiNewCustomer(faker.name().firstName(), faker.name().lastName(), faker.internet().emailAddress(Instant.now().getEpochSecond()+i+""));
+                    try {
+                        client.createCustomer(payload);
+                    } catch (Exception ex) {
+                        System.err.println("Failed creating customer #" + i + ": " + ex.getMessage());
+                    }
+                    if (i % 1000 == 0) {
+                        System.out.println("Created " + i + " customers so far at " + Instant.now());
+                    }
+                }
+
+                var end = Instant.now();
+                var duration = Duration.between(start, end).toMillis();
+                System.out.println("Finished customer generation at " + end + " (duration: " + duration + " ms)");
+
+                getUI().ifPresent(ui -> ui.access(() -> {
+                    refreshCustomers();
+                    generateCustomers.setEnabled(true);
+                    bulkCount.setEnabled(true);
+                }));
+            }).exceptionally(ex -> {
+                ex.printStackTrace();
+                getUI().ifPresent(ui -> ui.access(() -> {
+                    generateCustomers.setEnabled(true);
+                    bulkCount.setEnabled(true);
+                }));
+                return null;
+            });
+        });
+
         // Open details when clicking a customer row
         customerGrid.addItemClickListener(event -> {
             openCustomerDetails(event.getItem());
         });
 
-        HorizontalLayout actions = new HorizontalLayout(addCustomer);
+        HorizontalLayout actions = new HorizontalLayout(addCustomer, bulkCount, generateCustomers);
         add(actions, customerGrid);
         setFlexGrow(1, customerGrid);
     }
