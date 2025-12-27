@@ -4,6 +4,7 @@ import backend_jooq.db.dtos.DbCustomer;
 import backend_jooq.model.Customer;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.EntityManager;
+import jakarta.transaction.Transactional;
 
 import java.util.List;
 
@@ -27,6 +28,7 @@ public class CustomerRepository {
                 .toList();
     }
 
+    @Transactional
     public DbCustomer create(String firstName, String lastName, String email) {
         Customer c = new Customer(firstName, lastName, email);
         em.persist(c);
