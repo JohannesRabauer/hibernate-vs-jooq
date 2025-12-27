@@ -18,10 +18,12 @@ public class AddressRepository {
     }
 
     public List<DbAddress> findAllByCustomerId(int customerId) {
-        return em.createQuery("SELECT a FROM Address a WHERE a.customer.customerId = :cid", Address.class)
-                .setParameter("cid", customerId)
-                .getResultList()
-                .stream()
+        var cb = em.getCriteriaBuilder();
+        var cq = cb.createQuery(Address.class);
+        var root = cq.from(Address.class);
+        cq.select(root).where(cb.equal(root.get("customer").get("customerId"), customerId));
+        List<Address> results = em.createQuery(cq).getResultList();
+        return results.stream()
                 .map(a -> new DbAddress(a.getStreet(), a.getCity(), a.getCountry()))
                 .toList();
     }

@@ -17,9 +17,12 @@ public class CustomerRepository {
     }
 
     public List<DbCustomer> findAll() {
-        return em.createQuery("SELECT c FROM Customer c", Customer.class)
-                .getResultList()
-                .stream()
+        var cb = em.getCriteriaBuilder();
+        var cq = cb.createQuery(Customer.class);
+        var root = cq.from(Customer.class);
+        cq.select(root);
+        List<Customer> results = em.createQuery(cq).getResultList();
+        return results.stream()
                 .map(c -> new DbCustomer(c.getCustomerId(), c.getFirstName(), c.getLastName(), c.getEmail()))
                 .toList();
     }

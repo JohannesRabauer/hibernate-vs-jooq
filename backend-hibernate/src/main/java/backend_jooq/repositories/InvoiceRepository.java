@@ -25,19 +25,23 @@ public class InvoiceRepository {
     }
 
     public List<DbInvoice> findAllByCustomerId(int customerId) {
-        return em.createQuery("SELECT i FROM Invoice i WHERE i.customer.customerId = :cid", Invoice.class)
-                .setParameter("cid", customerId)
-                .getResultList()
-                .stream()
+        var cb = em.getCriteriaBuilder();
+        var cq = cb.createQuery(Invoice.class);
+        var root = cq.from(Invoice.class);
+        cq.select(root).where(cb.equal(root.get("customer").get("customerId"), customerId));
+        List<Invoice> results = em.createQuery(cq).getResultList();
+        return results.stream()
                 .map(i -> new DbInvoice(i.getInvoiceId(), i.getInvoiceDate(), i.getTotalAmount()))
                 .toList();
     }
 
     public List<DbInvoiceItem> findItemsByInvoiceId(int invoiceId) {
-        return em.createQuery("SELECT it FROM InvoiceItem it WHERE it.invoice.invoiceId = :iid", InvoiceItem.class)
-                .setParameter("iid", invoiceId)
-                .getResultList()
-                .stream()
+        var cb = em.getCriteriaBuilder();
+        var cq = cb.createQuery(InvoiceItem.class);
+        var root = cq.from(InvoiceItem.class);
+        cq.select(root).where(cb.equal(root.get("invoice").get("invoiceId"), invoiceId));
+        List<InvoiceItem> results = em.createQuery(cq).getResultList();
+        return results.stream()
                 .map(it -> new DbInvoiceItem(it.getQuantity(), it.getUnitPrice(), it.getProduct().getProductName(), it.getProduct().getPrice()))
                 .toList();
     }
