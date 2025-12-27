@@ -128,6 +128,19 @@ class: text-left
 - Object graph
 - Possible N+1
 
+```java
+// Load orders for a customer
+List<Order> orders = em.createQuery(
+  "select o from Order o where o.customer.id = :c", Order.class)
+  .setParameter("c", customerId)
+  .getResultList();
+
+for (Order o : orders) {
+  // if items are LAZY, this triggers one query per order -> N+1
+  System.out.println(o.getItems().size());
+}
+```
+
 </div>
 <div>
 <strong>jOOQ</strong>
@@ -135,13 +148,23 @@ class: text-left
 - Explicit join
 - Predictable rows
 
+```java
+var rows = ctx.select()
+  .from(ORDERS)
+  .join(ORDER_ITEMS).on(ORDER_ITEMS.ORDER_ID.eq(ORDERS.ID))
+  .where(ORDERS.CUSTOMER_ID.eq(customerId))
+  .fetch();
+
+// You get all data in one query; map explicitly to DTOs
+```
+
 </div>
 </div>
 
 <!--
 Notes:
-- Hibernate returns object graphs but fetch strategies can trigger extra queries (N+1).
-- jOOQ expresses joins directly: you know exactly what query runs and what rows you get.
+- The Hibernate example shows how lazy associations can produce N+1 queries during iteration.
+- The jOOQ example uses an explicit join so the SQL is obvious and predictable; you control what data is fetched.
 -->
 
 ---
@@ -161,6 +184,15 @@ class: text-left
 - Cascade magic
 - Hidden ordering
 
+```java
+Invoice invoice = new Invoice();
+invoice.setCustomer(customer);
+invoice.addItem(new InvoiceItem(...));
+em.persist(invoice);
+// On flush/commit Hibernate decides order and executes INSERTs; generated keys may be populated only after flush()
+// If you rely on the invoice id immediately you may need em.flush() first
+```
+
 </div>
 <div>
 <strong>jOOQ</strong>
@@ -168,13 +200,28 @@ class: text-left
 - Explicit insert
 - Batch items
 
+```java
+var id = ctx.insertInto(INVOICE)
+  .columns(INVOICE.CUSTOMER_ID, INVOICE.TOTAL)
+  .values(customerId, total)
+  .returning(INVOICE.ID)
+  .fetchOne()
+  .getId();
+
+ctx.batchInsert(items.stream().map(it ->
+  DSL.insertInto(INVOICE_ITEM)
+     .set(INVOICE_ITEM.INVOICE_ID, id)
+     .set(INVOICE_ITEM.AMOUNT, it.getAmount())
+).collect(Collectors.toList())).execute();
+```
+
 </div>
 </div>
 
 <!--
 Notes:
-- Hibernate uses cascades and flush semantics; inserts/updates may happen implicitly.
-- jOOQ does each insert explicitly (invoice then items), giving predictable SQL and order.
+- Hibernate's cascade/flush model hides the exact SQL and ordering; that can surprise you (e.g., needing flush to obtain generated keys).
+- jOOQ shows the exact sequence: insert parent, read id, then insert children — behavior is explicit and testable.
 -->
 
 ---
@@ -192,12 +239,46 @@ class: text-left
 - Session boundaries ⏳
 - jOOQ = SQL ✅
 
+<div grid="~ cols-2 gap-6">
+<div>
+<strong>Hibernate — Dirty checking</strong>
+
+```java
+Order order = em.find(Order.class, orderId);
+order.setStatus(Status.CANCELLED); // no explicit update call
+// on flush/commit Hibernate detects the change and emits:
+// UPDATE orders SET status = ? WHERE id = ?
+```
+
+- Implicit updates save boilerplate but can be surprising if you mutate entities from helper methods or across layers.
+
+</div>
+<div>
+<strong>jOOQ — Explicit update</strong>
+
+```java
+int updated = ctx.update(ORDERS)
+  .set(ORDERS.STATUS, Status.CANCELLED.name())
+  .where(ORDERS.ID.eq(orderId))
+  .execute();
+
+if (updated == 0) {
+  // handle missing row / concurrency conflict
+}
+```
+
+- Explicit updates make side effects obvious and easier to test.
+
+</div>
+</div>
+
 <!--
 Notes:
-- Common issues: N+1 selects and unexpected updates from dirty checking.
-- Reading the SQL helps you find hotspots and use indexes; jOOQ makes that direct.
+- Dirty checking: Any managed entity field changes are detected on flush and persisted automatically; this is convenient but can lead to unexpected updates if you mutate entities in utility code.
+- Session boundaries: changes are only tracked while entity is managed; modifying detached entities requires merge or explicit updates.
+- To avoid surprises: prefer explicit updates for critical operations, keep entities small/immutable, or use DTOs for cross-layer data; jOOQ makes updates explicit and testable.
+- Watch out for mutable collections: changing a collection in-place (e.g., list.add/remove) can mark the entity dirty and trigger updates or cascade operations.
 -->
-
 ---
 incremental: true
 background: https://picsum.photos/seed/fieldsflowers/1600/900
@@ -211,11 +292,67 @@ class: text-left
 - Hibernate: brittle tests ⚠️
 - jOOQ: DB snapshots ✅
 
+<div grid="~ cols-2 gap-6">
+<div>
+<strong>Hibernate</strong>
+
+```java
+// JUnit + JPA example that can be brittle if you rely on managed state
+@Test
+@Transactional
+void testCreateInvoice_shouldPersistItems() {
+  Invoice invoice = new Invoice();
+  invoice.addItem(new InvoiceItem("widget", 1));
+  em.persist(invoice);
+
+  // Without an explicit flush/clear, assertions that read via a new EntityManager or raw JDBC
+  // can fail because data is still only in the persistence context.
+  em.flush();
+  em.clear();
+
+  Integer count = jdbcTemplate.queryForObject(
+    "SELECT count(*) FROM invoice_item WHERE invoice_id = ?", Integer.class, invoice.getId());
+  assertEquals(1, count);
+}
+```
+
+</div>
+<div>
+<strong>jOOQ</strong>
+
+```java
+// DB-level assertion is simple and deterministic with Testcontainers + jOOQ
+@Test
+void testCreateInvoice_directSql() {
+  var id = ctx.insertInto(INVOICE)
+    .columns(INVOICE.CUSTOMER_ID, INVOICE.TOTAL)
+    .values(customerId, 100.0)
+    .returning(INVOICE.ID)
+    .fetchOne()
+    .getId();
+
+  ctx.insertInto(INVOICE_ITEM).set(INVOICE_ITEM.INVOICE_ID, id).set(INVOICE_ITEM.AMOUNT, 1).execute();
+
+  int items = ctx.selectCount().from(INVOICE_ITEM).where(INVOICE_ITEM.INVOICE_ID.eq(id)).fetchOne(0, int.class);
+  assertEquals(1, items);
+}
+```
+
+</div>
+</div>
+
 <!--
 Notes:
-- Hibernate tests must cover mapping and lifecycle behaviors (can be brittle).
-- With jOOQ you can assert DB rows and snapshots directly, which simplifies verification.
+- "Brittle" tests rely on internal ORM lifecycle details (flush timing, cascades, entity state) that may change with minor refactors or different test setups.
+- Causes: reliance on persistence context, lazy-loading, implicit flush on transaction boundaries, second-level caches, or test isolation differences.
+- Mitigations:
+  - Prefer DB-level assertions for behavioral verification (use JDBC, jOOQ, or queries) rather than assuming persistence context visibility.
+  - Use `em.flush()` and `em.clear()` before assertions that read the DB directly, or read via a fresh EntityManager.
+  - Use Testcontainers for a realistic DB and consistent environment.
+  - Keep unit tests focused (mock ORM behavior) and use small integration tests for DB behavior.
+- jOOQ tests that assert DB rows/snapshots tend to be more deterministic and easier to reason about because they check the actual persisted state.
 -->
+
 
 ---
 incremental: true
