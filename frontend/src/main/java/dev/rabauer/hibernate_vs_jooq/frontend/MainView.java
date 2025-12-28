@@ -8,6 +8,7 @@ import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.page.Push;
 import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.Route;
@@ -17,9 +18,13 @@ import org.eclipse.microprofile.rest.client.inject.RestClient;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.inject.Inject;
+
 import java.time.Instant;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.List;
+
+import com.vaadin.flow.component.notification.Notification;
 
 @Route("")
 public class MainView extends VerticalLayout {
@@ -45,7 +50,7 @@ public class MainView extends VerticalLayout {
         bulkCount.setMin(1);
 
         Button generateCustomers = new Button("Generate");
-        generateCustomers.addClickListener( e -> {
+        generateCustomers.addClickListener(e -> {
             int count = bulkCount.getValue() == null ? 0 : bulkCount.getValue().intValue();
             if (count <= 0) return;
 
@@ -58,23 +63,32 @@ public class MainView extends VerticalLayout {
 
             java.util.concurrent.CompletableFuture.runAsync(() -> {
                 var faker = new Faker();
+                var success = new java.util.concurrent.atomic.AtomicInteger(0);
                 for (int i = 1; i <= count; i++) {
-                    var payload = new ApiNewCustomer(faker.name().firstName(), faker.name().lastName(), faker.internet().emailAddress(Instant.now().getEpochSecond()+i+""));
+                    var payload = new ApiNewCustomer(faker.name().firstName(), faker.name().lastName(), faker.internet().emailAddress(Instant.now().getEpochSecond() + "" + i));
                     try {
                         client.createCustomer(payload);
+                        success.incrementAndGet();
                     } catch (Exception ex) {
                         System.err.println("Failed creating customer #" + i + ": " + ex.getMessage());
                     }
                     if (i % 1000 == 0) {
                         System.out.println("Created " + i + " customers so far at " + Instant.now());
+                        // Show a short progress notification on the UI thread
+                        final int createdAmount = i;
+                        getUI().ifPresent(ui -> ui.access(() -> {
+                            Notification.show("Created " + createdAmount + " customers so far", 1000, Notification.Position.TOP_CENTER);
+                        }));
                     }
                 }
 
                 var end = Instant.now();
                 var duration = Duration.between(start, end).toMillis();
-                System.out.println("Finished customer generation at " + end + " (duration: " + duration + " ms)");
+                var succ = success.get();
+                System.out.println("Finished customer generation at " + end + " (duration: " + duration + " ms), created: " + succ + "/" + count);
 
                 getUI().ifPresent(ui -> ui.access(() -> {
+                    Notification.show("Finished generation: " + succ + " / " + count + " customers in " + duration + " ms", 5000, Notification.Position.TOP_CENTER);
                     refreshCustomers();
                     generateCustomers.setEnabled(true);
                     bulkCount.setEnabled(true);
@@ -105,7 +119,23 @@ public class MainView extends VerticalLayout {
     }
 
     private void refreshCustomers() {
-        var list = client.getCustomers();
+        var start = Instant.now();
+        System.out.println("Fetching customers: start=" + start);
+
+        List<ApiCustomer> list;
+        try {
+            list = client.getCustomers();
+        } catch (Exception ex) {
+            System.err.println("Failed to fetch customers: " + ex.getMessage());
+            Notification.show("Failed to load customers: " + ex.getMessage(), 3000, Notification.Position.TOP_CENTER);
+            return;
+        }
+
+        var end = Instant.now();
+        long duration = Duration.between(start, end).toMillis();
+        System.out.println("Fetching customers: end=" + end + " duration=" + duration + " ms");
+        Notification.show("Loaded " + list.size() + " customers in " + duration + " ms", 5000, Notification.Position.TOP_CENTER);
+
         customerGrid.setItems(list);
     }
 
