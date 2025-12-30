@@ -23,6 +23,7 @@ import java.time.Instant;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.vaadin.flow.component.notification.Notification;
 
@@ -62,37 +63,45 @@ public class MainView extends VerticalLayout {
             System.out.println("Starting customer generation: count=" + count + " at " + start);
 
             java.util.concurrent.CompletableFuture.runAsync(() -> {
-                var faker = new Faker();
-                var success = new java.util.concurrent.atomic.AtomicInteger(0);
-                for (int i = 1; i <= count; i++) {
-                    var payload = new ApiNewCustomer(faker.name().firstName(), faker.name().lastName(), faker.internet().emailAddress(Instant.now().getEpochSecond() + "" + i));
-                    try {
-                        client.createCustomer(payload);
-                        success.incrementAndGet();
-                    } catch (Exception ex) {
-                        System.err.println("Failed creating customer #" + i + ": " + ex.getMessage());
+                // Ensure the thread has the correct context class loader so the REST client and JSON providers
+                // can find the DTO classes when executing on the common ForkJoin pool.
+                ClassLoader prevCl = Thread.currentThread().getContextClassLoader();
+                Thread.currentThread().setContextClassLoader(MainView.class.getClassLoader());
+                try {
+                    Faker faker = new Faker();
+                    AtomicInteger success = new java.util.concurrent.atomic.AtomicInteger(0);
+                    for (int i = 1; i <= count; i++) {
+                        ApiNewCustomer payload = new ApiNewCustomer(faker.name().firstName(), faker.name().lastName(), faker.internet().emailAddress(Instant.now().getEpochSecond() + "" + i));
+                        try {
+                            client.createCustomer(payload);
+                            success.incrementAndGet();
+                        } catch (Exception ex) {
+                            System.err.println("Failed creating customer #" + i + ": " + ex.getMessage());
+                        }
+                        if (i % 1000 == 0) {
+                            System.out.println("Created " + i + " customers so far at " + Instant.now());
+                            // Show a short progress notification on the UI thread
+                            final int createdAmount = i;
+                            getUI().ifPresent(ui -> ui.access(() -> {
+                                Notification.show("Created " + createdAmount + " customers so far", 1000, Notification.Position.TOP_CENTER);
+                            }));
+                        }
                     }
-                    if (i % 1000 == 0) {
-                        System.out.println("Created " + i + " customers so far at " + Instant.now());
-                        // Show a short progress notification on the UI thread
-                        final int createdAmount = i;
-                        getUI().ifPresent(ui -> ui.access(() -> {
-                            Notification.show("Created " + createdAmount + " customers so far", 1000, Notification.Position.TOP_CENTER);
-                        }));
-                    }
+
+                    Instant end = Instant.now();
+                    long duration = Duration.between(start, end).toMillis();
+                    int succ = success.get();
+                    System.out.println("Finished customer generation at " + end + " (duration: " + duration + " ms), created: " + succ + "/" + count);
+
+                    getUI().ifPresent(ui -> ui.access(() -> {
+                        Notification.show("Finished generation: " + succ + " / " + count + " customers in " + duration + " ms", 5000, Notification.Position.TOP_CENTER);
+                        refreshCustomers();
+                        generateCustomers.setEnabled(true);
+                        bulkCount.setEnabled(true);
+                    }));
+                } finally {
+                    Thread.currentThread().setContextClassLoader(prevCl);
                 }
-
-                var end = Instant.now();
-                var duration = Duration.between(start, end).toMillis();
-                var succ = success.get();
-                System.out.println("Finished customer generation at " + end + " (duration: " + duration + " ms), created: " + succ + "/" + count);
-
-                getUI().ifPresent(ui -> ui.access(() -> {
-                    Notification.show("Finished generation: " + succ + " / " + count + " customers in " + duration + " ms", 5000, Notification.Position.TOP_CENTER);
-                    refreshCustomers();
-                    generateCustomers.setEnabled(true);
-                    bulkCount.setEnabled(true);
-                }));
             }).exceptionally(ex -> {
                 ex.printStackTrace();
                 getUI().ifPresent(ui -> ui.access(() -> {
@@ -150,7 +159,7 @@ public class MainView extends VerticalLayout {
 
         Button submit = new Button("Create", e -> {
             ApiNewCustomer payload = new ApiNewCustomer(first.getValue(), last.getValue(), email.getValue());
-            var created = client.createCustomer(payload);
+            ApiCustomer created = client.createCustomer(payload);
             d.close();
             refreshCustomers();
         });
