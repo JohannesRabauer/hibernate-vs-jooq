@@ -13,7 +13,7 @@
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <!-- Gatling version used for benchmarking -->
-        <gatling.version>3.13.5</gatling.version>
+        <gatling.version>3.14.9</gatling.version>
     </properties>
 
     <dependencies>
